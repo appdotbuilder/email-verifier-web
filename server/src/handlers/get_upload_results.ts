@@ -1,39 +1,49 @@
 
+import { db } from '../db';
+import { csvUploadsTable, emailRecordsTable } from '../db/schema';
 import { type GetUploadResultsInput, type ValidationResultsResponse } from '../schema';
+import { eq } from 'drizzle-orm';
 
 export async function getUploadResults(input: GetUploadResultsInput): Promise<ValidationResultsResponse> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is:
-    // 1. Fetch the upload record with the given upload_id
-    // 2. Fetch all associated email records with their validation results
-    // 3. Calculate summary statistics (total, validated, status counts)
-    // 4. Return structured data for display in the frontend table
-    // 5. Include both original CSV data and validation results
-    
-    // Mock response structure
-    return {
-        upload: {
-            id: input.upload_id,
-            filename: 'placeholder.csv',
-            original_filename: 'placeholder.csv',
-            file_size: 1024,
-            total_rows: 0,
-            email_column: null,
-            status: 'uploaded',
-            created_at: new Date(),
-            completed_at: null
-        },
-        records: [],
-        summary: {
-            total: 0,
-            validated: 0,
-            ok: 0,
-            invalid: 0,
-            disposable: 0,
-            catch_all: 0,
-            unknown: 0,
-            error: 0,
-            duplicate: 0
-        }
+  try {
+    // Fetch the upload record
+    const uploads = await db.select()
+      .from(csvUploadsTable)
+      .where(eq(csvUploadsTable.id, input.upload_id))
+      .execute();
+
+    if (uploads.length === 0) {
+      throw new Error(`Upload with id ${input.upload_id} not found`);
+    }
+
+    const upload = uploads[0];
+
+    // Fetch all associated email records
+    const records = await db.select()
+      .from(emailRecordsTable)
+      .where(eq(emailRecordsTable.upload_id, input.upload_id))
+      .execute();
+
+    // Calculate summary statistics
+    const summary = {
+      total: records.length,
+      validated: records.filter(r => r.validation_status !== null).length,
+      ok: records.filter(r => r.validation_status === 'ok').length,
+      invalid: records.filter(r => r.validation_status === 'invalid').length,
+      disposable: records.filter(r => r.validation_status === 'disposable').length,
+      catch_all: records.filter(r => r.validation_status === 'catch_all').length,
+      unknown: records.filter(r => r.validation_status === 'unknown').length,
+      error: records.filter(r => r.validation_status === 'error').length,
+      duplicate: records.filter(r => r.validation_status === 'duplicate').length
     };
+
+    return {
+      upload,
+      records,
+      summary
+    };
+  } catch (error) {
+    console.error('Failed to get upload results:', error);
+    throw error;
+  }
 }

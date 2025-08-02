@@ -1,13 +1,19 @@
 
+import { db } from '../db';
+import { csvUploadsTable } from '../db/schema';
 import { type CsvUpload } from '../schema';
+import { desc } from 'drizzle-orm';
 
 export async function getUploads(): Promise<CsvUpload[]> {
-    // This is a placeholder declaration! Real code should be implemented here.
-    // The goal of this handler is:
-    // 1. Fetch all CSV upload records from the database
-    // 2. Order by created_at DESC to show most recent first
-    // 3. Include summary information for each upload
-    // 4. Return list for display in uploads management interface
-    
-    return [];
+  try {
+    const results = await db.select()
+      .from(csvUploadsTable)
+      .orderBy(desc(csvUploadsTable.created_at))
+      .execute();
+
+    return results;
+  } catch (error) {
+    console.error('Failed to fetch uploads:', error);
+    throw error;
+  }
 }
